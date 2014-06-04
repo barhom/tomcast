@@ -568,10 +568,11 @@ int connect_source(RESTREAMER *r, int retries, int readbuflen, int *http_code) {
 		}
 		// connected ok, continue
 	} else {
-		if (!IN_MULTICAST(ntohl(r->src_sockname.sin_addr.s_addr))) {
-			LOGf("ERR  : %s is not multicast address\n", r->channel->source);
+		if (!ntohl(r->src_sockname.sin_addr.s_addr)) {
+			LOGf("ERR  : %s is not a valid address\n", r->channel->source);
 			FATAL_ERROR;
 		}
+
 		struct ip_mreq mreq;
 		struct sockaddr_in receiving_from;
 
@@ -586,9 +587,11 @@ int connect_source(RESTREAMER *r, int retries, int readbuflen, int *http_code) {
 		// subscribe to multicast group
 		memcpy(&mreq.imr_multiaddr, &(r->src_sockname.sin_addr), sizeof(struct in_addr));
 		mreq.imr_interface.s_addr = htonl(INADDR_ANY);
-		if (setsockopt(r->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
-			LOGf("ERR  : Failed to add IP membership on %s srv_fd: %i\n", r->channel->source, r->sock);
-			FATAL_ERROR;
+		if(IN_MULTICAST(ntohl(r->src_sockname.sin_addr.s_addr))) {
+			if (setsockopt(r->sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+				LOGf("ERR  : Failed to add IP membership on %s srv_fd: %i\n", r->channel->source, r->sock);
+				FATAL_ERROR;
+			}
 		}
 		// bind to the socket so data can be read
 		memset(&receiving_from, 0, sizeof(receiving_from));
